@@ -2,10 +2,7 @@ from pandas import read_excel, isna
 import re
 
 
-df = read_excel(
-    io="D:/livesen-map/recommendation/experiment-scripts/example_table.xlsx",
-    sheet_name="Sheet1"
-)
+df = read_excel(io="example_table.xlsx", sheet_name="Sheet1")
 patterns = [
     re.compile(r"Fertilizer Application (\d+) Fertilizer$"),
     re.compile(r"Soil Tillage Application (\d+) Type$"),
@@ -29,5 +26,5 @@ for column in df:
                             data[v] = 0
                         data[v] += 1
 for data, category in zip(dicts, categories):
-    with open(f"../data/category/{category}.csv", "w", encoding="utf-8") as f:
+    with open(f"category/{category}.csv", "w", encoding="utf-8") as f:
         f.write(",".join([k for k, v in data.items() if v > 3]))

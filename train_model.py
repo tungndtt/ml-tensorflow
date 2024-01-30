@@ -1,8 +1,9 @@
+import numpy
 from keras.models import Sequential, save_model, load_model
 from keras.layers import Dense, BatchNormalization
 from keras.callbacks import EarlyStopping
-import numpy
-from psycopg2 import connect
+from read_dataset import read_data
+from preprocess_data import encode_data
 
 
 fields = [
@@ -17,6 +18,9 @@ fields = [
     "harvest_weight"
 ]
 
+model_path = "model/model.keras"
+weights_path = "model/weights.h5"
+
 
 def parse_record(record: tuple):
     if record is None:
@@ -24,37 +28,13 @@ def parse_record(record: tuple):
     return {col: record[i] for i, col in enumerate(fields)}
 
 
-def read_data():
-    import os
-    import sys
-    sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-    from config import STORAGE
-    from preprocess import encode_data
+def dataset():
     X, y = [], []
-    db_params = {
-        "dbname": STORAGE.dbname,
-        "user": STORAGE.user,
-        "password": STORAGE.password,
-        "host": STORAGE.host,
-        "port": STORAGE.port,
-    }
-    conn = connect(**db_params)
-    cursor = conn.cursor()
-    status = True
-    try:
-        columns = ",".join(fields)
-        cursor.execute(f"SELECT {columns} FROM season")
-        for record in cursor:
-            sample, label = encode_data(parse_record(record))
-            X.append(sample)
-            y.append(label)
-    except Exception as error:
-        status = False
-        print(error)
-    finally:
-        cursor.close()
-        conn.close()
-    return (X, y) if status else (None, None)
+    for data in read_data():
+        sample, label = encode_data(data)
+        X.append(sample)
+        y.append(label)
+    return X, y
 
 
 def build_model(X, y):
@@ -79,22 +59,19 @@ def build_model(X, y):
               epochs=2000,
               validation_split=0.1,
               callbacks=[])
-    save_model(model, "D:/livesen-map/recommendation/data/model/model.keras")
-    model.save_weights(
-        "D:/livesen-map/recommendation/data/model/weights.h5"
-    )
+    save_model(model, model_path)
+    model.save_weights(weights_path)
+
+
+def predict_model(X):
+    model = load_model(model_path)
+    model.load_weights(weights_path)
+    for i in range(10):
+        print(model.predict([X[i]])[0][0])
 
 
 if __name__ == "__main__":
     X, y = read_data()
     if X:
-        # construct model
         build_model(X, y)
-        # inference
-        # model = load_model(
-        #     "D:/livesen-map/recommendation/data/model/model.keras")
-        # model.load_weights(
-        #     "D:/livesen-map/recommendation/data/model/weights.h5"
-        # )
-        # for i in range(10):
-        #     print(model.predict([X[i]])[0][0])
+        # predict_model(X)
